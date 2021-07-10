@@ -7,11 +7,15 @@ use std::{thread, time};
 
 pub mod error;
 
+#[cfg(feature = "midi")]
+pub mod midi;
+
 pub enum DigitalDirection {
     INPUT,
     OUTPUT,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 pub enum BelaHw {
     NoHw = bela_sys::BelaHw_BelaHw_NoHw as isize,
