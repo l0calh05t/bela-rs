@@ -14,3 +14,19 @@ git = "https://github.com/andrewcsmith/bela-sys.git"
 [features]
 static = [ "bela-sys/static" ]
 midi = [ "bela-sys/midi" ]
+
+[[example]]
+name = "hello"
+
+[[example]]
+name = "digital"
+
+[[example]]
+name = "auxiliary_task"
+
+[[example]]
+name = "sample"
+
+[[example]]
+name = "midi"
+required-features = [ "midi" ]
