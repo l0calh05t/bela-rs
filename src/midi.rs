@@ -11,7 +11,7 @@ impl Midi {
         }
     }
 
-    pub fn get_message<'buf>(&self, buf: &'buf mut [u8; 3]) -> Option<&'buf [u8]> {
+    pub fn get_message<'buf>(&mut self, buf: &'buf mut [u8; 3]) -> Option<&'buf [u8]> {
         unsafe {
             if bela_sys::midi::Midi_availableMessages(self.0) <= 0 {
                 None
