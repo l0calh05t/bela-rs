@@ -1,5 +1,6 @@
 use std::ffi::c_void;
 use std::marker::PhantomData;
+use std::panic::catch_unwind;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 use crate::Error;
@@ -73,8 +74,10 @@ impl SetupContext {
         where
             Auxiliary: FnMut() + Send + 'static,
         {
-            let task_ptr = unsafe { &mut *(aux_ptr as *mut Auxiliary) };
-            task_ptr();
+            let _ = catch_unwind(|| {
+                let task_ptr = unsafe { &mut *(aux_ptr as *mut Auxiliary) };
+                task_ptr();
+            });
         }
 
         // let's be explicit about which part is actually unsafe here

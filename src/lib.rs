@@ -3,6 +3,7 @@ use std::convert::TryInto;
 use std::ffi::c_void;
 use std::ops::DerefMut;
 use std::os::raw::c_int;
+use std::panic::{catch_unwind, UnwindSafe};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -49,7 +50,7 @@ impl<Application, Constructor> UserData<Application, Constructor> {
 impl<Application, Constructor> Bela<Constructor>
 where
     Application: BelaApplication,
-    Constructor: Send + FnOnce(&mut Context<SetupTag>) -> Option<Application>,
+    Constructor: Send + UnwindSafe + FnOnce(&mut Context<SetupTag>) -> Option<Application>,
 {
     pub fn new(constructor: Constructor) -> Self {
         Self {
@@ -267,16 +268,20 @@ where
         ) -> bool
         where
             Application: BelaApplication,
-            Constructor: Send + FnOnce(&mut Context<SetupTag>) -> Option<Application>,
+            Constructor: Send + UnwindSafe + FnOnce(&mut Context<SetupTag>) -> Option<Application>,
         {
             // create application instance
             // constructor is consumed
             let user_data = unsafe { &mut *(user_data as *mut UserData<Application, Constructor>) };
             let constructor = user_data.take();
             if let UserData::Constructor(constructor) = constructor {
-                let mut context = unsafe { Context::<SetupTag>::new(context) };
-                *user_data =
-                    constructor(&mut context).map_or(UserData::None, UserData::Application);
+                *user_data = match catch_unwind(|| {
+                    let mut context = unsafe { Context::<SetupTag>::new(context) };
+                    constructor(&mut context)
+                }) {
+                    Ok(application) => application.map_or(UserData::None, UserData::Application),
+                    Err(_) => UserData::None,
+                };
             }
             user_data.is_application()
         }
@@ -289,6 +294,7 @@ where
         {
             let user_data = unsafe { &mut *(user_data as *mut UserData<Application, Constructor>) };
             if let UserData::Application(user_data) = user_data {
+                // NOTE: cannot use catch_unwind safely here, as it returns a boxed error (-> allocation in RT thread)
                 let mut context = unsafe { Context::<RenderTag>::new(context) };
                 user_data.render(&mut context);
             };
@@ -298,9 +304,12 @@ where
             _context: *mut bela_sys::BelaContext,
             user_data: *mut c_void,
         ) {
-            // drop application instance
-            let user_data = unsafe { &mut *(user_data as *mut UserData<Application, Constructor>) };
-            let _ = user_data.take();
+            let _ = catch_unwind(|| {
+                // drop application instance
+                let user_data =
+                    unsafe { &mut *(user_data as *mut UserData<Application, Constructor>) };
+                user_data.take();
+            });
         }
 
         settings.setup = Some(setup_trampoline::<Application, Constructor>);
