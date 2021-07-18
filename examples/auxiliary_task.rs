@@ -1,27 +1,13 @@
-//! Produces a sine wave while printing "this is a string" repeatedly,
-//! appending "LOL" to every iteration.
-//!
-//! There's an example here for both the stack-allocated and a Boxed closure.
-//!
-extern crate bela;
-extern crate sample;
+use bela::{AuxiliaryTask, Bela, BelaApplication, Error, RenderContext, SetupContext};
 
-use bela::*;
-
-struct MyData {
+struct AuxiliaryTaskExample {
     frame_index: usize,
-    tasks: Vec<CreatedTask>,
+    tasks: Vec<AuxiliaryTask>,
 }
 
-type BelaApp<'a> = Bela<AppData<'a, MyData>>;
-
-fn main() {
-    go().unwrap();
-}
-
-fn go() -> Result<(), error::Error> {
-    let mut setup = |_context: &mut Context, user_data: &mut MyData| -> Result<(), error::Error> {
-        println!("Setting up");
+impl AuxiliaryTaskExample {
+    fn new(context: &mut SetupContext) -> Option<Self> {
+        let mut tasks = Vec::new();
         let print_task = Box::new(|| {
             println!("this is a string");
         });
@@ -30,40 +16,50 @@ fn go() -> Result<(), error::Error> {
             println!("this is another string");
         });
 
-        user_data.tasks.push(BelaApp::create_auxiliary_task(
-            print_task,
-            10,
-            &std::ffi::CString::new("printing_stuff").unwrap(),
-        ));
-        user_data.tasks.push(BelaApp::create_auxiliary_task(
-            another_print_task,
-            10,
-            &std::ffi::CStr::from_bytes_with_nul(b"printing_more_stuff\0").unwrap(),
-        ));
-        Ok(())
-    };
+        // we solemnly promise not to reuse these names in any other process
+        unsafe {
+            tasks.push(
+                context
+                    .create_auxiliary_task(
+                        print_task,
+                        10,
+                        &std::ffi::CString::new("printing_stuff").unwrap(),
+                    )
+                    .ok()?,
+            );
+            tasks.push(
+                context
+                    .create_auxiliary_task(
+                        another_print_task,
+                        10,
+                        &std::ffi::CStr::from_bytes_with_nul(b"printing_more_stuff\0").unwrap(),
+                    )
+                    .ok()?,
+            );
+        }
 
-    let mut cleanup = |_context: &mut Context, _user_data: &mut MyData| {
-        println!("Cleaning up");
-    };
+        Some(Self {
+            frame_index: 0,
+            tasks,
+        })
+    }
+}
 
-    let mut render = |_context: &mut Context, user_data: &mut MyData| {
-        if user_data.frame_index % 1024 == 0 {
-            for task in user_data.tasks.iter() {
-                BelaApp::schedule_auxiliary_task(task).unwrap();
+unsafe impl BelaApplication for AuxiliaryTaskExample {
+    fn render(&mut self, context: &mut RenderContext) {
+        if self.frame_index % 1024 == 0 {
+            for task in self.tasks.iter() {
+                // explicitly ignore result instead of unwrapping, as unwinding here
+                // is probably dangerous
+                // TODO: find out if it really is and if panic_abort would fix this
+                let _ = context.schedule_auxiliary_task(task);
             }
         }
 
-        user_data.frame_index = user_data.frame_index.wrapping_add(1);
-    };
+        self.frame_index = self.frame_index.wrapping_add(1);
+    }
+}
 
-    let my_data = MyData {
-        tasks: Vec::new(),
-        frame_index: 0,
-    };
-
-    let user_data = AppData::new(my_data, &mut render, Some(&mut setup), Some(&mut cleanup));
-
-    let mut settings = InitSettings::default();
-    Bela::new(user_data).run(&mut settings)
+fn main() -> Result<(), Error> {
+    Bela::new(AuxiliaryTaskExample::new).run()
 }

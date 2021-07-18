@@ -1,15 +1,31 @@
 [package]
 name = "bela"
 version = "0.1.0"
-authors = ["Andrew C. Smith <andrewchristophersmith@gmail.com>"]
+edition = "2018"
+autoexamples = false
 
 [dependencies]
-
-[dev-dependencies]
-sample = { package = "dasp", version = "0.11.0", features = [ "signal", "slice" ] }
+nix = "0.22"
 
 [dependencies.bela-sys]
 git = "https://github.com/andrewcsmith/bela-sys.git"
 
 [features]
 static = [ "bela-sys/static" ]
+midi = [ "bela-sys/midi" ]
+
+[[example]]
+name = "hello"
+
+# [[example]]
+# name = "digital"
+
+[[example]]
+name = "auxiliary_task"
+
+# [[example]]
+# name = "sample"
+
+[[example]]
+name = "midi"
+required-features = [ "midi" ]
