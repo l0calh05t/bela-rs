@@ -1,45 +1,23 @@
-extern crate bela;
+use bela::{Bela, BelaApplication, DigitalDirection, Error, RenderContext};
 
-use bela::*;
+struct DigitalExample(usize);
 
-struct State {
-    idx: usize,
-}
-
-fn main() {
-    go().unwrap();
-}
-
-fn go() -> Result<(), error::Error> {
-    let mut setup = |context: &mut Context, _user_data: &mut State| -> Result<(), error::Error> {
-        println!("Setting up");
-        context.pin_mode(0, 0, DigitalDirection::OUTPUT);
-        Ok(())
-    };
-
-    let mut cleanup = |_context: &mut Context, _user_data: &mut State| {
-        println!("Cleaning up");
-    };
-
-    // Generates impulses on the first digital port every 100ms for 10ms
-    let mut render = |context: &mut Context, state: &mut State| {
-        let tenms_in_frames = (context.digital_sample_rate() / 100.) as usize;
-        let hundreadms_in_frames = (tenms_in_frames * 10) as usize;
+unsafe impl BelaApplication for DigitalExample {
+    fn render(&mut self, context: &mut RenderContext) {
+        context.pin_mode(0, 0, DigitalDirection::Output);
+        let ten_ms_in_frames = (context.digital_sample_rate() / 100.) as usize;
+        let hundred_ms_in_frames = (context.digital_sample_rate() / 10.) as usize;
         for f in 0..context.digital_frames() {
-            let v = state.idx < tenms_in_frames;
+            let v = self.0 < ten_ms_in_frames;
             context.digital_write_once(f, 0, v);
-            state.idx += 1;
-            if state.idx > hundreadms_in_frames {
-                state.idx = 0;
+            self.0 += 1;
+            if self.0 > hundred_ms_in_frames {
+                self.0 = 0;
             }
         }
-    };
+    }
+}
 
-    let state = State { idx: 0 };
-
-    let user_data = AppData::new(state, &mut render, Some(&mut setup), Some(&mut cleanup));
-
-    let mut bela_app = Bela::new(user_data);
-    let mut settings = InitSettings::default();
-    bela_app.run(&mut settings)
+fn main() -> Result<(), Error> {
+    Bela::new(|_| Some(DigitalExample(0))).run()
 }

@@ -17,8 +17,8 @@ midi = [ "bela-sys/midi" ]
 [[example]]
 name = "hello"
 
-# [[example]]
-# name = "digital"
+[[example]]
+name = "digital"
 
 [[example]]
 name = "auxiliary_task"

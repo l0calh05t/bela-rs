@@ -50,8 +50,8 @@ unsafe impl BelaApplication for AuxiliaryTaskExample {
         if self.frame_index % 1024 == 0 {
             for task in self.tasks.iter() {
                 // explicitly ignore result instead of unwrapping, as unwinding here
-                // is probably dangerous
-                // TODO: find out if it really is and if panic_abort would fix this
+                // is forbidden
+                // TODO: find out if panic_abort would be ok
                 let _ = context.schedule_auxiliary_task(task);
             }
         }
