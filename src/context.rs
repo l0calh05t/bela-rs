@@ -34,11 +34,6 @@ impl<StateTag> Context<StateTag> {
         Self(context, PhantomData)
     }
 
-    /// Mutable reference to wrapped C struct
-    // pub(crate) fn raw_mut(&mut self) -> &mut bela_sys::BelaContext {
-    //     unsafe { &mut *self.0 }
-    // }
-
     /// Reference to wrapped C struct
     pub(crate) fn raw(&self) -> &bela_sys::BelaContext {
         unsafe { &*self.0 }
