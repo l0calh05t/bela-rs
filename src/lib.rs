@@ -19,8 +19,13 @@ pub use crate::bela_hw::*;
 mod error;
 pub use crate::error::*;
 
+mod auxiliary_task;
+pub use crate::auxiliary_task::*;
+
 #[cfg(feature = "midi")]
-pub mod midi;
+mod midi;
+#[cfg(feature = "midi")]
+pub use crate::midi::*;
 
 pub unsafe trait BelaApplication: Sized + Send {
     fn render(&mut self, context: &mut Context<RenderTag>);
