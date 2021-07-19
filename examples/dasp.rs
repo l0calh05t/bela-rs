@@ -18,8 +18,6 @@ unsafe impl BelaApplication for DaspExample {
 }
 
 fn main() -> Result<(), Error> {
-    // Generates a sine wave with the period of whatever the audio frame
-    // size is.
     Bela::new(|ctx| {
         assert_eq!(ctx.audio_out_channels(), 2);
         let sig = signal::rate(ctx.audio_sample_rate() as f64)
