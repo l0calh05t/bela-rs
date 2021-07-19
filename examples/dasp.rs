@@ -1,9 +1,9 @@
 use bela::{Bela, BelaApplication, BelaHw, Error, RenderContext};
-use sample::{signal, slice::to_frame_slice_mut, Signal};
+use dasp::{signal, slice::to_frame_slice_mut, Signal};
 
-struct SampleExample(Box<dyn Signal<Frame = f64> + Send>);
+struct DaspExample(Box<dyn Signal<Frame = f64> + Send>);
 
-unsafe impl BelaApplication for SampleExample {
+unsafe impl BelaApplication for DaspExample {
     fn render(&mut self, context: &mut RenderContext) {
         let audio_out = context.audio_out();
         let audio_out_frames: &mut [[f32; 2]] = to_frame_slice_mut(audio_out).unwrap();
@@ -25,7 +25,7 @@ fn main() -> Result<(), Error> {
         let sig = signal::rate(ctx.audio_sample_rate() as f64)
             .const_hz(440.0)
             .sine();
-        Some(SampleExample(Box::new(sig)))
+        Some(DaspExample(Box::new(sig)))
     })
     .verbose(true)
     .board(BelaHw::Bela)
