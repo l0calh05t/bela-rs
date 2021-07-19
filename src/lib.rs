@@ -254,7 +254,7 @@ where
     }
 
     /// Set user selected board to work with (as opposed to detected hardware).
-    pub fn set_board(mut self, board: BelaHw) -> Self {
+    pub fn board(mut self, board: BelaHw) -> Self {
         self.settings.board = board as _;
         self
     }
