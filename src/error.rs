@@ -6,6 +6,7 @@ pub enum Error {
     Start,
     Stop,
     Cleanup,
+    CreateTask,
     Task,
 }
 
@@ -22,6 +23,7 @@ impl error::Error for Error {
             Error::Start => "Bela_startAudio error",
             Error::Stop => "Bela_stopAudio error",
             Error::Cleanup => "Bela_cleanupAudio error",
+            Error::CreateTask => "Bela_createAuxiliaryTask error",
             Error::Task => "Bela_scheduleAuxiliaryTask error",
         }
     }

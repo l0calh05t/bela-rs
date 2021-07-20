@@ -199,7 +199,7 @@ impl<'a, T: UserData<'a> + 'a> Bela<T> {
         task: Box<Auxiliary>,
         priority: i32,
         name: &std::ffi::CStr,
-    ) -> CreatedTask
+    ) -> Result<CreatedTask, error::Error>
     where
         Auxiliary: FnMut() + Send + 'static,
     {
@@ -226,7 +226,11 @@ impl<'a, T: UserData<'a> + 'a> Bela<T> {
             )
         };
 
-        CreatedTask(aux_task)
+        if aux_task.is_null() {
+            Err(error::Error::CreateTask)
+        } else {
+            Ok(CreatedTask(aux_task))
+        }
     }
 
     pub fn schedule_auxiliary_task(task: &CreatedTask) -> Result<(), error::Error> {
