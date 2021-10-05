@@ -32,7 +32,7 @@ impl AuxiliaryTaskExample {
                     .create_auxiliary_task(
                         another_print_task,
                         10,
-                        &std::ffi::CStr::from_bytes_with_nul(b"printing_more_stuff\0").unwrap(),
+                        std::ffi::CStr::from_bytes_with_nul(b"printing_more_stuff\0").unwrap(),
                     )
                     .ok()?,
             );
