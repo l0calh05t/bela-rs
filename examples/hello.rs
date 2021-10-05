@@ -9,13 +9,16 @@ struct HelloExample(usize);
 // TODO: what if panic = abort?
 unsafe impl BelaApplication for HelloExample {
     fn render(&mut self, context: &mut RenderContext) {
-        for sample in context.audio_out().iter_mut() {
+        let audio_out_channels = context.audio_out_channels();
+        for frame in context.audio_out().chunks_exact_mut(audio_out_channels) {
             let gain = 0.5;
-            *sample = 2. * (self.0 as f32 * 110. / 44100.) - 1.;
-            *sample *= gain;
+            let signal = 2. * (self.0 as f32 * 110. / 44100.) - 1.;
             self.0 += 1;
             if self.0 as f32 > 44100. / 110. {
                 self.0 = 0;
+            }
+            for sample in frame {
+                *sample = gain * signal;
             }
         }
     }
