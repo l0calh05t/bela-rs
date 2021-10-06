@@ -361,6 +361,7 @@ where
 
         let mut user_data: UserData<Application, _> = UserData::Constructor(constructor);
 
+        /// C-compatible trampoline function to call constructor
         extern "C" fn setup_trampoline<Application, Constructor>(
             context: *mut bela_sys::BelaContext,
             user_data: *mut c_void,
@@ -385,6 +386,7 @@ where
             user_data.is_application()
         }
 
+        /// C-compatible trampoline function to call our render function
         extern "C" fn render_trampoline<Application, Constructor>(
             context: *mut bela_sys::BelaContext,
             user_data: *mut c_void,
@@ -399,6 +401,8 @@ where
             };
         }
 
+        /// C-compatible trampoline function to consume (and thereby drop)
+        /// our application object
         extern "C" fn cleanup_trampoline<Application, Constructor>(
             _context: *mut bela_sys::BelaContext,
             user_data: *mut c_void,
@@ -411,11 +415,10 @@ where
             });
         }
 
+        // set up our trampoline functions as setup/render/cleanup
         settings.setup = Some(setup_trampoline::<Application, Constructor>);
         settings.render = Some(render_trampoline::<Application, Constructor>);
         settings.cleanup = Some(cleanup_trampoline::<Application, Constructor>);
-
-        setup_signal_handler();
 
         if unsafe {
             bela_sys::Bela_initAudio(
@@ -428,11 +431,17 @@ where
         }
 
         if unsafe { bela_sys::Bela_startAudio() } != 0 {
+            unsafe {
+                bela_sys::Bela_stopAudio();
+                bela_sys::Bela_cleanupAudio();
+            }
             return Err(Error::Start);
         }
 
+        setup_signal_handler();
+
         while unsafe { bela_sys::Bela_stopRequested() == 0 } {
-            sleep(Duration::new(0, 10000));
+            sleep(Duration::new(0, 100000));
         }
 
         unsafe {
