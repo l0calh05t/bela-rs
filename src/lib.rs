@@ -1,3 +1,39 @@
+//! Safe Rust wrapper for the Bela platform API
+//!
+//! Wraps the [`bela-sys`](https://github.com/andrewcsmith/bela-sys) in
+//! a safe API, simplifying the creation of Bela applications using safe
+//! Rust. The main entry point is `Bela::new` followed by `Bela::run` as
+//! shown in the example below:
+//!
+//! ```no_run
+//! use bela::{Bela, BelaApplication, Error, RenderContext};
+//!
+//! struct Example(usize);
+//!
+//! // Implementing BelaApplication is unsafe, even when render only
+//! // contains safe code, as it must also be realtime safe
+//! unsafe impl BelaApplication for Example {
+//!     fn render(&mut self, context: &mut RenderContext) {
+//!         let audio_out_channels = context.audio_out_channels();
+//!         for frame in context.audio_out().chunks_exact_mut(audio_out_channels) {
+//!             let gain = 0.5;
+//!             let signal = 2. * (self.0 as f32 * 110. / 44100.) - 1.;
+//!             self.0 += 1;
+//!             if self.0 as f32 > 44100. / 110. {
+//!                 self.0 = 0;
+//!             }
+//!             for sample in frame {
+//!                 *sample = gain * signal;
+//!             }
+//!         }
+//!     }
+//! }
+//!
+//! fn main() -> Result<(), Error> {
+//!     Bela::new(|_context| Some(Example(0))).run()
+//! }
+//! ```
+
 use nix::sys::signal;
 use std::convert::TryInto;
 use std::ffi::c_void;
@@ -27,26 +63,79 @@ mod midi;
 #[cfg(feature = "midi")]
 pub use crate::midi::*;
 
+/// Trait your Bela applications must implement
+///
+/// # Safety:
+/// Implementing `BelaApplication` is unsafe, as some invariants
+/// must be fulfilled that the Rust compiler cannot check. As
+/// [per the official documentation](https://learn.bela.io/using-bela/languages/c-plus-plus/#bela-c-must-be-real-time-safe)
+/// `render` must be real-time safe:
+///
+/// > The code in the `render()` function operates in “primary” mode.
+/// > Everything that the operating system does is at a lower priority -
+/// > such as connecting to the network, printing to the console,
+/// > reading from the SD card, and so on - also called “secondary”
+/// > mode.
+/// >
+/// > Switching from the primary real-time mode of the `render()` thread
+/// > to the secondary system functions is called a mode switch, and
+/// > will interfere with Bela’s performance.
+/// >
+/// > There are ways around mode switches. As a general rule, avoid
+/// > running any code that requires access to specific features of the
+/// > Linux system. For instance, instead of using the usual C++ methods
+/// > of printing to the console such as `cout` or `printf()`, Bela has
+/// > a real-time safe print function: `rt_printf()`. Additionally, when
+/// > a process needs more time to complete or may involve switching
+/// > modes, you can use the `AuxiliaryTask` API (see the example
+/// > Sensors -> MPR121 in the Examples to run the code in a different,
+/// > lower-priority thread.
+/// >
+/// > Be aware that this concept of real-time safety also applies to
+/// > allocating memory, which should only be done in the `setup()`
+/// > function and not in `render()`.
+///
+/// Additionally, `render` *must not* panic (a concept that does not
+/// exist in C).
 pub unsafe trait BelaApplication: Sized + Send {
-    fn render(&mut self, context: &mut Context<RenderTag>);
+    fn render(&mut self, context: &mut RenderContext);
 }
 
+/// The main entry point for Bela applications
+///
+/// `Bela` follows the builder pattern and allows you to incrementally
+/// set up the Bela as required and then run it, consuming the builder
+/// object. The most important functions are `Bela::new` and
+/// `Bela::run`.
 pub struct Bela<Constructor> {
+    /// Initial settings. Not directly accessible.
     settings: InitSettings,
+    /// `BelaApplication` constructor, set on creation.
     constructor: Constructor,
 }
 
+/// Internal user data definition
+///
+/// `UserData` can either be empty (`None`), contain a `BelaApplication`
+/// constructor (`Constructor`) or a running application
+/// (`Application`).
 enum UserData<Application, Constructor> {
+    /// A running `BelaApplication` application
     Application(Application),
+    /// A `BelaApplication` constructor
     Constructor(Constructor),
+    /// An empty `UserData` object
     None,
 }
 
 impl<Application, Constructor> UserData<Application, Constructor> {
+    /// Take the `UserData` object and replace it with `None`, mirroring
+    /// `Option::take`.
     fn take(&mut self) -> Self {
         std::mem::replace(self, Self::None)
     }
 
+    /// Check if the `UserData` represents a running application.
     fn is_application(&self) -> bool {
         matches!(self, Self::Application(_))
     }
@@ -57,6 +146,8 @@ where
     Application: BelaApplication,
     Constructor: Send + UnwindSafe + FnOnce(&mut Context<SetupTag>) -> Option<Application>,
 {
+    /// Create a new `Bela` builder with default settings from a
+    /// `BelaApplication` constructor function object
     pub fn new(constructor: Constructor) -> Self {
         Self {
             settings: InitSettings::default(),
@@ -253,12 +344,15 @@ where
         self
     }
 
-    /// Set user selected board to work with (as opposed to detected hardware).
+    /// Set user selected board to work with (as opposed to detected hardware)
     pub fn board(mut self, board: BelaHw) -> Self {
         self.settings.board = board as _;
         self
     }
 
+    /// Consumes the `Bela` object and runs the application
+    ///
+    /// Terminates on error, or as soon as the application stops
     pub fn run(self) -> Result<(), Error> {
         let Self {
             mut settings,
@@ -350,6 +444,8 @@ where
     }
 }
 
+/// Internal function that setups up a Linux signal handler to stop the
+/// Bela audio thread on `SIGINT` and `SIGTERM`
 fn setup_signal_handler() {
     extern "C" fn signal_handler(_signal: c_int) {
         unsafe {
