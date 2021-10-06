@@ -4,6 +4,11 @@ use std::panic::catch_unwind;
 use crate::{Error, RenderContext, SetupContext};
 
 /// Handle to a created auxiliary Bela task
+///
+/// Created via `SetupContext::create_auxiliary_task` and scheduled
+/// using `RenderContext::schedule_auxiliary_task`. Does not provide any
+/// member functions directly, to ensure the task is only created in
+/// valid contexts.
 pub struct AuxiliaryTask(bela_sys::AuxiliaryTask);
 
 unsafe impl Send for AuxiliaryTask {}
