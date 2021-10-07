@@ -144,7 +144,7 @@ impl<Application, Constructor> UserData<Application, Constructor> {
 impl<Application, Constructor> Bela<Constructor>
 where
     Application: BelaApplication,
-    Constructor: Send + UnwindSafe + FnOnce(&mut Context<SetupTag>) -> Option<Application>,
+    Constructor: Send + UnwindSafe + FnOnce(&mut SetupContext) -> Option<Application>,
 {
     /// Create a new `Bela` builder with default settings from a
     /// `BelaApplication` constructor function object
@@ -368,7 +368,7 @@ where
         ) -> bool
         where
             Application: BelaApplication,
-            Constructor: Send + UnwindSafe + FnOnce(&mut Context<SetupTag>) -> Option<Application>,
+            Constructor: Send + UnwindSafe + FnOnce(&mut SetupContext) -> Option<Application>,
         {
             // create application instance
             // constructor is consumed
