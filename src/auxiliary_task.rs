@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use std::panic::catch_unwind;
 
-use crate::{Error, RenderContext, SetupContext};
+use crate::{Context, Error, SetupContext};
 
 /// Handle to a created auxiliary Bela task
 ///
@@ -63,7 +63,7 @@ impl SetupContext {
     }
 }
 
-impl RenderContext {
+impl<T> Context<T> {
     /// Schedule a created auxiliary task
     pub fn schedule_auxiliary_task(&mut self, task: &AuxiliaryTask) -> Result<(), Error> {
         let res = unsafe { bela_sys::Bela_scheduleAuxiliaryTask(task.0) };
